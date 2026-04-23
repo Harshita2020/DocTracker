@@ -3,6 +3,8 @@ import { STUDENTS } from "./constants/students.js";
 import { DOCUMENTS } from "./constants/documents.js";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const STORAGE_KEY = "student_doc_tracker_v1";
 
@@ -76,56 +78,109 @@ function generatePDF(allData) {
     head,
     body,
     startY: 68,
+
     styles: {
-      fontSize: 7.5,
-      cellPadding: 4,
+      fontSize: 10,
+      cellPadding: 6,
       halign: "center",
       valign: "middle",
+      lineWidth: 0.8, // 🔥 thick borders
+      lineColor: [0, 0, 0], // 🔥 dark lines
     },
+
     headStyles: {
       fillColor: [30, 41, 59],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 7,
-      halign: "center",
+      fontSize: 10,
     },
+
     columnStyles: {
-      0: { halign: "left", fontStyle: "bold", cellWidth: 90 },
-      [DOCUMENTS.length + 1]: { fontStyle: "bold", cellWidth: 36 },
+      0: {
+        halign: "left",
+        fontStyle: "bold",
+        cellWidth: 100,
+      },
     },
+
+    bodyStyles: {
+      textColor: 0,
+    },
+
     didParseCell(data) {
+      // Make symbols BIG and clear
       if (
         data.section === "body" &&
         data.column.index >= 1 &&
         data.column.index <= DOCUMENTS.length
       ) {
         if (data.cell.raw === "\u2713") {
-          data.cell.styles.textColor = [22, 101, 52];
-          data.cell.styles.fillColor = [240, 253, 244];
-        } else if (data.cell.raw === "\u2717") {
-          data.cell.styles.textColor = [185, 28, 28];
-          data.cell.styles.fillColor = [255, 245, 245];
-        }
-      }
-      if (
-        data.section === "body" &&
-        data.column.index === DOCUMENTS.length + 1
-      ) {
-        const parts = (data.cell.raw || "").split("/").map(Number);
-        if (parts[0] === parts[1]) {
-          data.cell.styles.textColor = [22, 101, 52];
-          data.cell.styles.fillColor = [220, 252, 231];
+          data.cell.text = ["✔"]; // bigger check
+          data.cell.styles.fontSize = 12;
         } else {
-          data.cell.styles.textColor = [133, 77, 14];
-          data.cell.styles.fillColor = [254, 249, 195];
+          data.cell.text = ["—"]; // cleaner than ✗
+          data.cell.styles.fontSize = 12;
         }
       }
     },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+
+    alternateRowStyles: {
+      fillColor: [245, 245, 245], // light grey
+    },
+
     margin: { left: 40, right: 40 },
   });
 
   doc.save("student_document_report.pdf");
+}
+
+function exportJSON(allData) {
+  try {
+    const blob = new Blob([JSON.stringify(allData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "student_data_backup.json";
+    a.click();
+
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("Export failed");
+  }
+}
+
+function exportExcel(allData) {
+  const rows = STUDENTS.map((student) => {
+    const sData = allData[student] || {};
+
+    let row = { Student: student };
+
+    DOCUMENTS.forEach((doc) => {
+      row[doc] = sData[doc] ? "✓" : "";
+    });
+
+    row["Total"] = DOCUMENTS.filter((d) => sData[d]).length;
+
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
+
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+
+  const file = new Blob([excelBuffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  saveAs(file, "Student_Report.xlsx");
 }
 
 export default function App() {
@@ -135,6 +190,7 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [view, setView] = useState("tracker"); // "tracker" | "summary"
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
 
   const student = STUDENTS[currentIdx];
   const studentDocs = allData[student] || {};
@@ -142,6 +198,11 @@ export default function App() {
   const submittedDocs = DOCUMENTS.filter((d) => studentDocs[d]);
   const missingDocs = DOCUMENTS.filter((d) => !studentDocs[d]);
 
+  useEffect(() => {
+    const handler = () => setSaveOpen(false);
+    window.addEventListener("click", handler);
+    return () => window.removeEventListener("click", handler);
+  }, []);
   const triggerSaved = useCallback(() => {
     const now = new Date();
     setLastUpdated(now);
@@ -192,9 +253,52 @@ export default function App() {
             <span style={styles.schoolLabel}>📋 DocTrack</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={styles.pdfBtn} onClick={() => generatePDF(allData)}>
-              ⬇ PDF
-            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                style={styles.pdfBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSaveOpen((prev) => !prev);
+                }}
+              >
+                💾 Save As ▾
+              </button>
+
+              {saveOpen && (
+                <div style={styles.saveDropdown}>
+                  <div
+                    style={styles.saveItem}
+                    onClick={() => {
+                      generatePDF(allData);
+                      setSaveOpen(false);
+                    }}
+                  >
+                    ⬇ Download PDF
+                  </div>
+
+                  <div
+                    style={styles.saveItem}
+                    onClick={() => {
+                      exportExcel(allData);
+                      setSaveOpen(false);
+                    }}
+                  >
+                    ⬇ Download Excel
+                  </div>
+
+                  <div
+                    style={styles.saveItem}
+                    onClick={() => {
+                      exportJSON(allData);
+                      setSaveOpen(false);
+                    }}
+                  >
+                    💾 Backup (JSON)
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               style={
                 view === "summary"
@@ -847,5 +951,28 @@ const styles = {
     fontWeight: 700,
     cursor: "pointer",
     letterSpacing: 0.3,
+  },
+  saveDropdown: {
+    position: "absolute",
+    top: "110%",
+    right: 0,
+    background: "#fff",
+    borderRadius: 10,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+    overflow: "hidden",
+    minWidth: 180,
+    zIndex: 200,
+  },
+
+  saveItem: {
+    padding: "12px 14px",
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#1e293b",
+    cursor: "pointer",
+    borderBottom: "1px solid #e2e8f0",
+  },
+  saveItemHover: {
+    background: "#f1f5f9",
   },
 };
