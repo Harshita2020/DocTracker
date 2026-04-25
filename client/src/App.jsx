@@ -1,30 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { STUDENTS } from "./constants/students.js";
 import { DOCUMENTS } from "./constants/documents.js";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
-const STORAGE_KEY = "student_doc_tracker_v1";
-
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveData(data) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { generatePDF, exportExcel, exportJSON } from "./utils/exportUtils";
+import { useStudentData } from "./hooks/useStudentData";
+import SummaryView from "./components/SummaryView.jsx";
+// const STORAGE_KEY = "student_doc_tracker_v1";
 
 function formatTime(date) {
   return date.toLocaleTimeString("en-IN", {
@@ -34,163 +15,15 @@ function formatTime(date) {
   });
 }
 
-function generatePDF(allData) {
-  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-
-  // Title
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("Student Document Report", 40, 40);
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(120);
-  doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, 40, 56);
-  doc.setTextColor(0);
-
-  // Abbreviated column headers to fit landscape A4
-  const docShortNames = {
-    "Birth Certificate": "Birth\nCert.",
-    "Aadhaar Card": "Aadhaar",
-    "Previous School TC": "School\nTC",
-    "Mark Sheet (Last Year)": "Mark\nSheet",
-    "Caste Certificate": "Caste\nCert.",
-    "Income Certificate": "Income\nCert.",
-    "Medical Fitness Certificate": "Medical\nFitness",
-    "Passport-size Photographs": "Photos",
-    "Address Proof": "Address\nProof",
-    "Parent/Guardian ID Proof": "Parent\nID",
-    "Scholarship Form": "Scholar-\nship",
-  };
-
-  const head = [
-    ["Student Name", ...DOCUMENTS.map((d) => docShortNames[d] || d), "Total"],
-  ];
-
-  const body = STUDENTS.map((student) => {
-    const sData = allData[student] || {};
-    const docCells = DOCUMENTS.map((d) => (sData[d] ? "\u2713" : "\u2717"));
-    const total = DOCUMENTS.filter((d) => sData[d]).length;
-    return [student, ...docCells, `${total}/${DOCUMENTS.length}`];
-  });
-
-  autoTable(doc, {
-    head,
-    body,
-    startY: 68,
-
-    styles: {
-      fontSize: 10,
-      cellPadding: 6,
-      halign: "center",
-      valign: "middle",
-      lineWidth: 0.8, // 🔥 thick borders
-      lineColor: [0, 0, 0], // 🔥 dark lines
-    },
-
-    headStyles: {
-      fillColor: [30, 41, 59],
-      textColor: 255,
-      fontStyle: "bold",
-      fontSize: 10,
-    },
-
-    columnStyles: {
-      0: {
-        halign: "left",
-        fontStyle: "bold",
-        cellWidth: 100,
-      },
-    },
-
-    bodyStyles: {
-      textColor: 0,
-    },
-
-    didParseCell(data) {
-      // Make symbols BIG and clear
-      if (
-        data.section === "body" &&
-        data.column.index >= 1 &&
-        data.column.index <= DOCUMENTS.length
-      ) {
-        if (data.cell.raw === "\u2713") {
-          data.cell.text = ["✔"]; // bigger check
-          data.cell.styles.fontSize = 12;
-        } else {
-          data.cell.text = ["—"]; // cleaner than ✗
-          data.cell.styles.fontSize = 12;
-        }
-      }
-    },
-
-    alternateRowStyles: {
-      fillColor: [245, 245, 245], // light grey
-    },
-
-    margin: { left: 40, right: 40 },
-  });
-
-  doc.save("student_document_report.pdf");
-}
-
-function exportJSON(allData) {
-  try {
-    const blob = new Blob([JSON.stringify(allData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "student_data_backup.json";
-    a.click();
-
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    alert("Export failed");
-  }
-}
-
-function exportExcel(allData) {
-  const rows = STUDENTS.map((student) => {
-    const sData = allData[student] || {};
-
-    let row = { Student: student };
-
-    DOCUMENTS.forEach((doc) => {
-      row[doc] = sData[doc] ? "✓" : "";
-    });
-
-    row["Total"] = DOCUMENTS.filter((d) => sData[d]).length;
-
-    return row;
-  });
-
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
-
-  const excelBuffer = XLSX.write(workbook, {
-    bookType: "xlsx",
-    type: "array",
-  });
-
-  const file = new Blob([excelBuffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-
-  saveAs(file, "Student_Report.xlsx");
-}
-
 export default function App() {
-  const [allData, setAllData] = useState(loadData);
+  // const [allData, setAllData] = useState(loadData);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [savedMsg, setSavedMsg] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [view, setView] = useState("tracker"); // "tracker" | "summary"
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const { allData, setAllData } = useStudentData();
 
   const student = STUDENTS[currentIdx];
   const studentDocs = allData[student] || {};
@@ -473,6 +306,7 @@ export default function App() {
             }}
             currentIdx={currentIdx}
             generatePDF={() => generatePDF(allData)}
+            styles={styles}
           />
         )}
       </main>
@@ -515,79 +349,6 @@ export default function App() {
           </div>
         </footer>
       )}
-    </div>
-  );
-}
-
-function SummaryView({ allData, goTo, currentIdx, generatePDF }) {
-  const sorted = STUDENTS.map((s, i) => {
-    const sData = allData[s] || {};
-    const missing = DOCUMENTS.filter((d) => !sData[d]).length;
-    return { name: s, idx: i, missing };
-  }).sort((a, b) => b.missing - a.missing);
-
-  const complete = sorted.filter((s) => s.missing === 0).length;
-  const pending = sorted.filter((s) => s.missing > 0).length;
-
-  return (
-    <div>
-      {/* Stats bar */}
-      <div style={styles.statsRow}>
-        <div style={styles.statCard}>
-          <span style={styles.statNum}>{STUDENTS.length}</span>
-          <span style={styles.statLabel}>Total</span>
-        </div>
-        <div style={{ ...styles.statCard, background: "#dcfce7" }}>
-          <span style={{ ...styles.statNum, color: "#166534" }}>
-            {complete}
-          </span>
-          <span style={{ ...styles.statLabel, color: "#166534" }}>
-            Complete
-          </span>
-        </div>
-        <div style={{ ...styles.statCard, background: "#fef9c3" }}>
-          <span style={{ ...styles.statNum, color: "#854d0e" }}>{pending}</span>
-          <span style={{ ...styles.statLabel, color: "#854d0e" }}>Pending</span>
-        </div>
-      </div>
-
-      {/* Student list */}
-      <section style={styles.section}>
-        {sorted.map(({ name, idx, missing }) => (
-          <div
-            key={name}
-            style={{
-              ...styles.summaryRow,
-              ...(missing === 0
-                ? styles.summaryRowDone
-                : styles.summaryRowPending),
-            }}
-            onClick={() => goTo(idx)}
-          >
-            <div style={styles.summaryRowLeft}>
-              <span style={styles.summaryName}>{name}</span>
-              <span style={styles.summarySubtext}>
-                {DOCUMENTS.length - missing} / {DOCUMENTS.length} submitted
-              </span>
-            </div>
-            <div style={styles.summaryRight}>
-              {missing === 0 ? (
-                <span style={styles.badgeComplete}>✓ Done</span>
-              ) : (
-                <span style={styles.badgeMissing}>{missing} missing</span>
-              )}
-              <span style={styles.summaryArrow}>›</span>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* Download PDF */}
-      <div style={{ padding: "16px 16px 8px" }}>
-        <button style={styles.downloadPdfBtn} onClick={generatePDF}>
-          ⬇ Download Full Report as PDF
-        </button>
-      </div>
     </div>
   );
 }

@@ -39,8 +39,12 @@ export const STUDENTS = [
   "Noor Kang",
   "Simranjeet",
   "Sukhjot Saidpura",
-  "Tanyeer",
-  "Bittu Singh",
-  "Manjeet Singh",
-  "Sandeep",
+  "Tanveer",
+  "Rehmat Preet",
+  "Arshdeep",
+  "Khushpreet",
+  "Gagan Preet",
+  "Sehajdeep",
+  "Ekamjot",
+  "Rishu"
 ];

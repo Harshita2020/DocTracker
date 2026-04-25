@@ -5,6 +5,7 @@ export const DOCUMENTS = [
   "Bank Account",
   "Caste Certificate",
   "Date Of Birth Certificate",
+  "DOB new",
   "Residence Certificate",
   "Income Certificate",
   "Detail Mark Sheet (Last Year)",
@@ -12,4 +13,6 @@ export const DOCUMENTS = [
   "Transfer Certificate",
   "Fees",
   "Passport Size Photo",
+  "Quali Mom",
+  "Quali Dad"
 ];
