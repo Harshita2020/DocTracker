@@ -1,5 +1,7 @@
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
+console.log("BASE_URL- ",mport.meta.env.VITE_BASE_URL);
+
 export async function fetchData() {
   const res = await fetch(`${BASE_URL}/data`);
   return res.json();
