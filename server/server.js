@@ -22,6 +22,10 @@ const dataSchema = new mongoose.Schema({
 
 const Data = mongoose.model("Data", dataSchema);
 
+app.get("/", (req, res) => {
+  res.send("API is running 🚀");
+});
+
 // 🟢 GET DATA
 app.get("/data", async (req, res) => {
   const doc = await Data.findOne();
