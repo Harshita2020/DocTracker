@@ -2,6 +2,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { DOCUMENTS } from "../constants/documents";
+import { STUDENTS } from "../constants/students";
 
 export function generatePDF(allData) {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
