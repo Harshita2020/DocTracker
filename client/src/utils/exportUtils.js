@@ -117,7 +117,7 @@ export function generatePDF(allData) {
   const day = now.getDate();
   const month = now.toLocaleString("en-IN", { month: "short" });
 
-  const fileName = `${className}_${year}_${month}_${day}_Documents.xlsx`;
+  const fileName = `9th 26 Documents`;
   console.log("Generated file name:", fileName);
   // saveAs(file, fileName);
 
