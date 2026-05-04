@@ -16,22 +16,27 @@ export function generatePDF(allData) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(120);
-  doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, 40, 56);
+  // doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, 40, 56);
   doc.setTextColor(0);
 
   // Abbreviated column headers to fit landscape A4
   const docShortNames = {
-    "Birth Certificate": "Birth\nCert.",
-    "Aadhaar Card": "Aadhaar",
-    "Previous School TC": "School\nTC",
-    "Mark Sheet (Last Year)": "Mark\nSheet",
-    "Caste Certificate": "Caste\nCert.",
-    "Income Certificate": "Income\nCert.",
-    "Medical Fitness Certificate": "Medical\nFitness",
-    "Passport-size Photographs": "Photos",
-    "Address Proof": "Address\nProof",
-    "Parent/Guardian ID Proof": "Parent\nID",
-    "Scholarship Form": "Scholar-\nship",
+    "Aadhaar Card Student": "Aadhaar (S)",
+    "Aadhaar Card Mom": "Aadhaar (M)",
+    "Aadhaar Card Dad": "Aadhaar (F)",
+    "Bank Account": "Bank",
+    "Caste Certificate": "Caste Cert",
+    "Date Of Birth Certificate": "DOB (Old)",
+    "DOB new": "DOB (New)",
+    "Residence Certificate": "Residence",
+    "Income Certificate": "Income",
+    "Detail Mark Sheet (Last Year)": "DMC",
+    "School Leaving Certificate": "SLC",
+    "Transfer Certificate": "TC",
+    Fees: "Fees",
+    "Passport Size Photo": "Photo",
+    "Quali Mom": "Mother Edu",
+    "Quali Dad": "Father Edu",
   };
 
   const head = [
@@ -51,12 +56,12 @@ export function generatePDF(allData) {
     startY: 68,
 
     styles: {
-      fontSize: 10,
-      cellPadding: 6,
+      fontSize: 8, // 👈 was 10 → reduce slightly
+      cellPadding: 3, // 👈 tighter spacing
       halign: "center",
       valign: "middle",
-      lineWidth: 0.8, // 🔥 thick borders
-      lineColor: [0, 0, 0], // 🔥 dark lines
+      lineWidth: 0.6,
+      lineColor: [0, 0, 0],
     },
 
     headStyles: {
@@ -70,7 +75,8 @@ export function generatePDF(allData) {
       0: {
         halign: "left",
         fontStyle: "bold",
-        cellWidth: 100,
+        cellWidth: 75,
+        overflow: "linebreak",
       },
     },
 
@@ -105,10 +111,18 @@ export function generatePDF(allData) {
 
     margin: { left: 40, right: 40 },
   });
+  const className = "9th";
+  const year = new Date().getFullYear();
+  const now = new Date();
+  const day = now.getDate();
+  const month = now.toLocaleString("en-IN", { month: "short" });
 
-  doc.save("student_document_report.pdf");
+  const fileName = `${className}_${year}_${month}_${day}_Documents.xlsx`;
+  console.log("Generated file name:", fileName);
+  // saveAs(file, fileName);
+
+  doc.save(`${fileName}.pdf`);
 }
-
 
 export function exportJSON(allData) {
   try {
@@ -127,7 +141,6 @@ export function exportJSON(allData) {
     alert("Export failed");
   }
 }
-
 
 export function exportExcel(allData) {
   const rows = STUDENTS.map((student) => {
@@ -156,6 +169,13 @@ export function exportExcel(allData) {
   const file = new Blob([excelBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
+  const className = "9th";
+  const year = new Date().getFullYear();
+  const now = new Date();
+  const day = now.getDate();
+  const month = now.toLocaleString("en-IN", { month: "short" });
 
-  saveAs(file, "Student_Report.xlsx");
+  const fileName = `${className}_${year}_${month}_${day}_Documents.xlsx`;
+  console.log("Generated file name:", fileName);
+  saveAs(file, fileName);
 }

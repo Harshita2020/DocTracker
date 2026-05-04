@@ -7,7 +7,6 @@ export const STUDENTS = [
   "Jashandeep",
   "Jaskiran",
   "Jasleen",
-  "Jasmeen",
   "Jaspreet",
   "Gursharan",
   "Manpreet Kaur",
@@ -46,5 +45,8 @@ export const STUDENTS = [
   "Gagan Preet",
   "Sehajdeep",
   "Ekamjot",
-  "Rishu"
+  "Rishu",
+  "Amritpal Kaur",
+  "Jasleen Raya",
+  "Manpreet Raya",
 ];
