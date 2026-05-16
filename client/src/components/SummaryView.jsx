@@ -1,11 +1,24 @@
 import { STUDENTS } from "../constants/students";
 import { DOCUMENTS } from "../constants/documents";
+import { getStudentData } from "../utils/studentHelpers";
+import { getFieldData, normalizeField } from "../utils/documentHelpers";
 
-function SummaryView({ allData, goTo, currentIdx, generatePDF, styles}) {
-  const sorted = STUDENTS.map((s, i) => {
-    const sData = allData[s] || {};
-    const missing = DOCUMENTS.filter((d) => !sData[d]).length;
-    return { name: s, idx: i, missing };
+function SummaryView({ allData, goTo, currentIdx, generatePDF, styles }) {
+  const sorted = STUDENTS.map((student, i) => {
+    const sData = getStudentData(allData, student);
+
+    const missing = DOCUMENTS.filter((doc) => {
+      const rawField = getFieldData(sData, doc);
+      const field = normalizeField(rawField);
+
+      return !field.hasDoc;
+    }).length;
+
+    return {
+      name: student.name,
+      idx: i,
+      missing,
+    };
   }).sort((a, b) => b.missing - a.missing);
 
   const complete = sorted.filter((s) => s.missing === 0).length;

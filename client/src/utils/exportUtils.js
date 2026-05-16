@@ -4,6 +4,9 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { DOCUMENTS } from "../constants/documents";
 import { STUDENTS } from "../constants/students";
+import { getStudentData } from "../utils/studentHelpers";
+
+import { getFieldData, normalizeField } from "../utils/documentHelpers";
 
 export function generatePDF(allData) {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
@@ -40,15 +43,44 @@ export function generatePDF(allData) {
   };
 
   const head = [
-    ["Student Name", ...DOCUMENTS.map((d) => docShortNames[d] || d), "Total"],
+    // ["Student Name", ...DOCUMENTS.map((d) => docShortNames[d] || d), "Total"],
+    [
+      "Student Name",
+      ...DOCUMENTS.map((d) => docShortNames[d.label] || d.label),
+      "Total",
+    ],
   ];
 
+  // const body = STUDENTS.map((student) => {
+  //   const sData = allData[student.name] || {};
+  //   const docCells = DOCUMENTS.map((d) => (sData[d.name] ? "YES" : ""));
+  //   const total = DOCUMENTS.filter((d) => sData[d.name]).length;
+  //   return [student, ...docCells, `${total}/${DOCUMENTS.length}`];
+  // });
+
   const body = STUDENTS.map((student) => {
-    const sData = allData[student] || {};
-    const docCells = DOCUMENTS.map((d) => (sData[d] ? "YES" : ""));
-    const total = DOCUMENTS.filter((d) => sData[d]).length;
-    return [student, ...docCells, `${total}/${DOCUMENTS.length}`];
+  const sData = getStudentData(allData, student);
+
+  const docCells = DOCUMENTS.map((doc) => {
+    const rawField = getFieldData(sData, doc);
+    const field = normalizeField(rawField);
+
+    return field.hasDoc ? "YES" : "";
   });
+
+  const total = DOCUMENTS.filter((doc) => {
+    const rawField = getFieldData(sData, doc);
+    const field = normalizeField(rawField);
+
+    return field.hasDoc;
+  }).length;
+
+  return [
+    student.name,
+    ...docCells,
+    `${total}/${DOCUMENTS.length}`,
+  ];
+});
 
   autoTable(doc, {
     head,
@@ -144,18 +176,28 @@ export function exportJSON(allData) {
 
 export function exportExcel(allData) {
   const rows = STUDENTS.map((student) => {
-    const sData = allData[student] || {};
+  const sData = getStudentData(allData, student);
 
-    let row = { Student: student };
+  let row = {
+    Student: student.name,
+  };
 
-    DOCUMENTS.forEach((doc) => {
-      row[doc] = sData[doc] ? "✓" : "";
-    });
+  DOCUMENTS.forEach((doc) => {
+    const rawField = getFieldData(sData, doc);
+    const field = normalizeField(rawField);
 
-    row["Total"] = DOCUMENTS.filter((d) => sData[d]).length;
-
-    return row;
+    row[doc.label] = field.hasDoc ? "✓" : "";
   });
+
+  row["Total"] = DOCUMENTS.filter((doc) => {
+    const rawField = getFieldData(sData, doc);
+    const field = normalizeField(rawField);
+
+    return field.hasDoc;
+  }).length;
+
+  return row;
+});
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();

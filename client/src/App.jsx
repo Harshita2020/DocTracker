@@ -5,6 +5,8 @@ import { fetchData, saveData } from "./api/dataApi.js";
 import { generatePDF, exportExcel, exportJSON } from "./utils/exportUtils";
 import { useStudentData } from "./hooks/useStudentData";
 import SummaryView from "./components/SummaryView.jsx";
+import { getStudentData } from "./utils/studentHelpers";
+import { getFieldData, normalizeField } from "./utils/documentHelpers";
 // const STORAGE_KEY = "student_doc_tracker_v1";
 
 function formatTime(date) {
@@ -25,11 +27,27 @@ export default function App() {
   const [saveOpen, setSaveOpen] = useState(false);
   const { allData, setAllData } = useStudentData();
 
+  // const student = STUDENTS[currentIdx];
+  // const studentDocs = allData[student] || {};
   const student = STUDENTS[currentIdx];
-  const studentDocs = allData[student] || {};
+  const studentDocs = getStudentData(allData, student);
 
-  const submittedDocs = DOCUMENTS.filter((d) => studentDocs[d]);
-  const missingDocs = DOCUMENTS.filter((d) => !studentDocs[d]);
+  // const submittedDocs = DOCUMENTS.filter((d) => studentDocs[d]);
+  // const missingDocs = DOCUMENTS.filter((d) => !studentDocs[d]);
+
+  const submittedDocs = DOCUMENTS.filter((doc) => {
+    const rawField = getFieldData(studentDocs, doc);
+    const field = normalizeField(rawField);
+
+    return field.hasDoc;
+  });
+
+  const missingDocs = DOCUMENTS.filter((doc) => {
+    const rawField = getFieldData(studentDocs, doc);
+    const field = normalizeField(rawField);
+
+    return !field.hasDoc;
+  });
 
   useEffect(() => {
     const handler = () => setSaveOpen(false);
@@ -44,18 +62,28 @@ export default function App() {
   }, []);
 
   const toggleDoc = useCallback(
-    (doc) => {
+    (docId) => {
       setAllData((prev) => {
+        console.log("OLD:", prev[student.legacyKey]);
+        console.log("NEW:", prev[student.id]);
+        const existingStudentData =
+          prev[student.id] ?? prev[student.legacyKey] ?? {};
+
         const updated = {
           ...prev,
-          [student]: {
-            ...(prev[student] || {}),
-            [doc]: !prev[student]?.[doc],
+
+          [student.id]: {
+            ...existingStudentData,
+
+            [docId]: !existingStudentData?.[docId],
           },
         };
+
         saveData(updated);
+
         return updated;
       });
+
       triggerSaved();
     },
     [student, triggerSaved],
@@ -166,7 +194,8 @@ export default function App() {
                 <span style={styles.studentIdx}>
                   {currentIdx + 1} / {STUDENTS.length}
                 </span>
-                <span style={styles.studentName}>{student}</span>
+                {/* <span style={styles.studentName}>{student}</span> */}
+                <span style={styles.studentName}>{student.name}</span>
                 <span style={styles.dropArrow}>{dropdownOpen ? "▲" : "▼"}</span>
               </div>
               <button
@@ -197,18 +226,27 @@ export default function App() {
             {dropdownOpen && (
               <div style={styles.dropdown}>
                 {STUDENTS.map((s, i) => {
-                  const sData = allData[s] || {};
-                  const missing = DOCUMENTS.filter((d) => !sData[d]).length;
+                  // const sData = allData[s] || {};
+                  // const missing = DOCUMENTS.filter((d) => !sData[d]).length;
+                  const sData = getStudentData(allData, s);
+                  const missing = DOCUMENTS.filter((doc) => {
+                    const rawField = getFieldData(sData, doc);
+                    const field = normalizeField(rawField);
+
+                    return !field.hasDoc;
+                  }).length;
                   return (
                     <div
-                      key={s}
+                      // key={s}
+                      key={s.id}
                       style={{
                         ...styles.dropItem,
                         ...(i === currentIdx ? styles.dropItemActive : {}),
                       }}
                       onClick={() => goTo(i)}
                     >
-                      <span style={styles.dropName}>{s}</span>
+                      {/* <span style={styles.dropName}>{s}</span> */}
+                      <span style={styles.dropName}>{s.name}</span>
                       <span
                         style={{
                           ...styles.dropBadge,
@@ -239,10 +277,15 @@ export default function App() {
             <section style={styles.section}>
               <h2 style={styles.sectionTitle}>Documents</h2>
               {DOCUMENTS.map((doc) => {
-                const checked = !!studentDocs[doc];
+                // const checked = !!studentDocs[doc];
+                const rawField = getFieldData(studentDocs, doc);
+                const fieldData = normalizeField(rawField);
+                const checked = fieldData.hasDoc;
+
                 return (
                   <label
-                    key={doc}
+                    // key={doc}
+                    key={doc.id}
                     style={{
                       ...styles.docRow,
                       ...(checked ? styles.docRowChecked : {}),
@@ -262,12 +305,14 @@ export default function App() {
                         ...(checked ? styles.docLabelChecked : {}),
                       }}
                     >
-                      {doc}
+                      {/* {doc} */}
+                      {doc.label}
                     </span>
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={() => toggleDoc(doc)}
+                      // onChange={() => toggleDoc(doc)}
+                      onChange={() => toggleDoc(doc.id)}
                       style={{ display: "none" }}
                     />
                   </label>
@@ -282,9 +327,10 @@ export default function App() {
                   ⚠ Missing ({missingDocs.length})
                 </h2>
                 {missingDocs.map((doc) => (
-                  <div key={doc} style={styles.missingRow}>
+                  // <div key={doc} style={styles.missingRow}>
+                  <div key={doc.id} style={styles.missingRow}>
                     <span style={styles.missingDot} />
-                    <span style={styles.missingLabel}>{doc}</span>
+                    <span style={styles.missingLabel}>{doc.label}</span>
                   </div>
                 ))}
               </section>

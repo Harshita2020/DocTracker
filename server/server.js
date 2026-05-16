@@ -29,6 +29,7 @@ app.get("/", (req, res) => {
 // 🟢 GET DATA
 app.get("/data", async (req, res) => {
   const doc = await Data.findOne();
+  console.log("Data fetched");
   res.json(doc ? doc.data : {});
 });
 

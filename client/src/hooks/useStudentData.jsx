@@ -6,8 +6,12 @@ export function useStudentData() {
 
   // load once
   useEffect(() => {
+    console.time("fetchData");
     fetchData().then((data) => {
       if (data) setAllData(data);
+      console.timeEnd("fetchData");
+      console.log("Result-", data);
+      console.log("Result keys-", Object.keys(data));
     });
   }, []);
 
